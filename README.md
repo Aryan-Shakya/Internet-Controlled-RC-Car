@@ -43,8 +43,8 @@ This project demonstrates how to build a remote-controlled car that can be maneu
 ### Hardware Assembly Photos
 *(Place your car images in an `images` folder to display them here!)*
 <p align="center">
-  <img src="/car_1.jpg" alt="Car Assembly - Top View" width="45%" />
-  <img src="./car_2.jpg" alt="Car Assembly - Side View" width="45%" />
+  <img src="./car_1.jpeg" alt="Car Assembly - Top View" width="45%" />
+  <img src="./car_2.jpeg" alt="Car Assembly - Side View" width="45%" />
 </p>
 
 ## 🔌 Circuit Diagram & Hardware Setup
