@@ -1,1 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Car Control</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --secondary-color: #a29bfe;
+            --success-color: #00b894;
+            --danger-color: #d63031;
+            --warning-color: #fdcb6e;
+            --dark-color: #2d3436;
+            --light-color: #dfe6e9;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #ffffff;
+            --border-color: #333333;
+        }
+        
+        .light-mode {
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #2d3436;
+            --border-color: #dfe6e9;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .container {
+            /* Changed to block to remove two-column layout */
+            display: block; 
+            min-height: 100vh;
+        }
+        
+        .control-panel {
+            /* Now uses full width and minimal padding */
+            width: 100%;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+        
+        .theme-toggle {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .theme-toggle:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .status-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .status-card h3 {
+            margin-bottom: 8px;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .connected {
+            background-color: var(--success-color);
+        }
+        
+        .disconnected {
+            background-color: var(--danger-color);
+        }
+        
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+        
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 15px;
+            width: 300px;
+            height: 300px;
+            margin: 20px 0;
+        }
+        
+        .control-btn {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-color);
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .control-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .forward {
+            grid-column: 2;
+            grid-row: 1;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+        
+        .left {
+            grid-column: 1;
+            grid-row: 2;
+            background: linear-gradient(135deg, var(--warning-color), #e17055);
+            color: white;
+        }
+        
+        .stop {
+            grid-column: 2;
+            grid-row: 2;
+            background: linear-gradient(135deg, var(--danger-color), #e84393);
+            color: white;
+        }
+        
+        .right {
+            grid-column: 3;
+            grid-row: 2;
+            background: linear-gradient(135deg, var(--warning-color), #e17055);
+            color: white;
+        }
+        
+        .backward {
+            grid-column: 2;
+            grid-row: 3;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+        
+        .emergency-stop {
+            background: linear-gradient(135deg, var(--danger-color), #e84393);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 15px 30px;
+            margin: 10px 0;
+        }
+        
+        .emergency-stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(214, 48, 49, 0.3);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            filter: brightness(0.9);
+        }
+        
+        .key-hint {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .key {
+            background: var(--card-bg);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
 
+        .log {
+            height: 150px; /* Made shorter */
+            overflow-y: auto;
+            background-color: var(--bg-color);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        @media (max-width: 1024px) {
+             .d-pad {
+                 width: 280px;
+                 height: 280px;
+            }
+        }
+    </style>
+</head>
+<body class="dark-mode">
+    <div class="container">
+        
+        <div class="control-panel">
+            <header>
+                <div>
+                    <h1>Car Control</h1>
+                    <p>Real-time control via Firebase Digital Pins (HIGH/LOW)</p>
+                </div>
+                <button class="theme-toggle" id="theme-toggle">
+                    <span id="theme-icon">🌙</span>
+                    <span id="theme-text">Dark Mode</span>
+                </button>
+            </header>
+            
+            <div class="status-bar">
+                <div class="status-card">
+                    <h3>Database Status</h3>
+                    <p><span class="status-indicator disconnected" id="connection-indicator"></span> <span id="connection-status">Disconnected</span></p>
+                </div>
+                <div class="status-card">
+                    <h3>Car Status</h3>
+                    <p id="car-status">Ready</p>
+                </div>
+                <div class="status-card">
+                    <h3>Last Command</h3>
+                    <p id="last-command">None</p>
+                </div>
+                 <div class="status-card">
+                    <h3>Current GPIO State</h3>
+                    <p id="current-gpio-state">0:0:0:0</p>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h2>Control Pad</h2>
+                
+                <button class="btn emergency-stop" id="emergency-stop">🛑 EMERGENCY STOP</button>
+                
+                <div class="d-pad">
+                    <button class="control-btn forward" id="btn-forward">↑</button>
+                    <button class="control-btn left" id="btn-left">←</button>
+                    <button class="control-btn stop" id="btn-stop">⏹</button>
+                    <button class="control-btn right" id="btn-right">→</button>
+                    <button class="control-btn backward" id="btn-backward">↓</button>
+                </div>
+                
+                <div class="key-hint">
+                    <div class="key">W / ↑</div>
+                    <div class="key">A / ←</div>
+                    <div class="key">S / ↓</div>
+                    <div class="key">D / →</div>
+                    <div class="key">Space = Stop</div>
+                    <div class="key">E = Emergency Stop</div>
+                </div>
+            </div>
+            
+            <div class="dashboard">
+                <div class="card">
+                    <h2>Command Log</h2>
+                    <div class="log" id="command-log">
+                        <div class="log-entry">
+                            <span class="log-time" id="current-time"></span> System initialized
+                        </div>
+                        <div class="log-entry">
+                            <span class="log-time" id="current-time2"></span> Ready for commands
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Firebase Settings</h2>
+                    <div class="settings-group">
+                        <label for="firebase-apikey">Firebase API Key</label>
+                        <input type="password" id="firebase-apikey" value="AIzaSy...your-api-key...">
+                    </div>
+                    <div class="settings-group">
+                        <label for="firebase-databaseurl">Database URL</label>
+                        <input type="text" id="firebase-databaseurl" value="https://esp32-rc-car-6b539-default-rtdb.firebaseio.com">
+                    </div>
+                    <div class="settings-group">
+                        <label for="firebase-commandpath">Command Path</label>
+                        <input type="text" id="firebase-commandpath" value="gpio"> </div>
+                    <button class="btn btn-primary" id="save-settings">Save Settings</button>
+                </div>
+            </div>
+            
+            <footer>
+                <p>ESP32 + Firebase Car Project</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ 1. FIREBASE CONFIGURATION
+        
+        // --- 1. CONFIGURATION OBJECT ---
+        
+        // [FIX 2] I've used the API key you had in the <head> and placed it here.
+        const FIREBASE_API_KEY = "AIzaSyAnGCebB8nm3EDINilNZAeQdpV0E44w8tw"; 
+        const FIREBASE_DB_URL = "https://esp32-rc-car-6b539-default-rtdb.firebaseio.com";
+        const FIREBASE_PROJECT_ID = "esp32-rc-car-6b539";
+        const FIREBASE_COMMAND_PATH = "gpio"; // Matches the /gpio.json path in ESP32 code
+
+        const firebaseConfig = {
+            apiKey: FIREBASE_API_KEY,
+            authDomain: FIREBASE_PROJECT_ID + ".firebaseapp.com",
+            databaseURL: FIREBASE_DB_URL,
+            projectId: FIREBASE_PROJECT_ID,
+        };
+        
+        // Initialize Firebase App
+        // This initialization uses the basic Firebase SDK setup
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch (e) {
+            console.error("Firebase initialization failed:", e);
+            alert("Firebase initialization failed. Please check your API Key and Database URL in settings.");
+        }
+        
+        const database = firebase.database();
+
+        // References (Firebase path where the ESP32 looks for commands)
+        let commandRef = database.ref(FIREBASE_COMMAND_PATH);
+
+        // DOM Elements
+        const btnForward = document.getElementById('btn-forward');
+        const btnBackward = document.getElementById('btn-backward');
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const btnStop = document.getElementById('btn-stop');
+        const emergencyStop = document.getElementById('emergency-stop');
+        const currentGpioStateDisplay = document.getElementById('current-gpio-state');
+        const carStatus = document.getElementById('car-status');
+        const lastCommand = document.getElementById('last-command');
+        const commandLog = document.getElementById('command-log');
+        const saveSettingsBtn = document.getElementById('save-settings');
+        const themeToggle = document.getElementById('theme-toggle');
+        const connectionIndicator = document.getElementById('connection-indicator');
+        const connectionStatus = document.getElementById('connection-status');
+        const apiKeyInput = document.getElementById('firebase-apikey');
+        const databaseUrlInput = document.getElementById('firebase-databaseurl');
+        const commandPathInput = document.getElementById('firebase-commandpath');
+        
+        // State variables
+        let isConnected = false;
+        let activeKey = null;
+        let isDarkMode = true;
+        
+        // Pin Definitions (Matching the intended GPIO states for the ESP32 code)
+        // GPIO Pins: 14 (IN1), 27 (IN2), 26 (IN3), 25 (IN4)
+        // Note: This JSON structure MUST match what the ESP32 code expects to read: {"14": 1, "27": 0, ...}
+        const PINS = {
+            // Forward: Both wheels forward (IN1=1, IN3=1)
+            F: { "14": 1, "27": 0, "26": 1, "25": 0 }, 
+            // Backward: Both wheels backward (IN2=1, IN4=1)
+            B: { "14": 0, "27": 1, "26": 0, "25": 1 }, 
+            // Turn Right (Pivot: Left wheel FWD [14], Right wheel BWD [25])
+            R: { "14": 1, "27": 0, "26": 0, "25": 1 }, 
+            // Turn Left (Pivot: Left wheel BWD [27], Right wheel FWD [26])
+            L: { "14": 0, "27": 1, "26": 1, "25": 0 }, 
+            // Stop (All LOW)
+            S: { "14": 0, "27": 0, "26": 0, "25": 0 }, 
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            setCurrentTime();
+            // Start connection monitoring checks Firebase status
+            checkFirebaseConnection(); 
+        });
+        
+        function setupEventListeners() {
+            // Control buttons
+            btnForward.addEventListener('mousedown', () => sendCommand('F'));
+            btnBackward.addEventListener('mousedown', () => sendCommand('B'));
+            btnLeft.addEventListener('mousedown', () => sendCommand('L'));
+            btnRight.addEventListener('mousedown', () => sendCommand('R'));
+            btnStop.addEventListener('click', () => sendCommand('S'));
+            emergencyStop.addEventListener('click', emergencyStopCar);
+            
+            // Add touch events for mobile
+            [btnForward, btnBackward, btnLeft, btnRight].forEach(btn => {
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); sendCommand(btn.id.replace('btn-', '').charAt(0).toUpperCase()); });
+            });
+            
+            // Release events
+            [btnForward, btnBackward, btnLeft, btnRight].forEach(btn => {
+                btn.addEventListener('mouseup', releaseCommand);
+                btn.addEventListener('mouseleave', releaseCommand);
+                btn.addEventListener('touchend', releaseCommand);
+                btn.addEventListener('touchcancel', releaseCommand);
+            });
+            
+            // Settings
+            saveSettingsBtn.addEventListener('click', saveSettings);
+            
+            // Theme toggle
+            themeToggle.addEventListener('click', toggleTheme);
+            
+            // Keyboard controls
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
+        }
+        
+        /**
+         * Function to write the command and pin states directly to the Firebase Realtime Database.
+         */
+        function sendCommand(command) {
+            // Determine the pin states for the given command
+            const pinStates = PINS[command];
+            
+            // Visual feedback
+            highlightButton(command);
+            lastCommand.textContent = getCommandName(command);
+            
+            // Add to log
+            const pinLog = `${pinStates["14"]}:${pinStates["27"]}:${pinStates["26"]}:${pinStates["25"]}`;
+            addToLog(`Sent command: ${getCommandName(command)} (GPIO: ${pinLog})`);
+            currentGpioStateDisplay.textContent = pinLog;
+
+            // ⚠️ Firebase Write Operation
+            // Writes the direct JSON object {"14": 1, "27": 0, "26": 1, "25": 0} to the '/gpio' path
+            database.ref(FIREBASE_COMMAND_PATH).set(pinStates)
+            .then(() => {
+                console.log("Firebase command sent successfully!");
+                
+                // Update car status on successful write
+                carStatus.textContent = command !== 'S' ? `Moving: ${getCommandName(command)}` : 'Stopped';
+                updateConnectionStatus(true, 'Command Sent ✓');
+            })
+            .catch((error) => {
+                console.error("Firebase write error:", error);
+                addToLog(`ERROR: Firebase Write Failed - ${error.message}`);
+                updateConnectionStatus(false, 'Write Failed');
+                carStatus.textContent = 'Write Failed';
+            });
+        }
+        
+        function releaseCommand() {
+            // Remove active state from all direction buttons
+            [btnForward, btnBackward, btnLeft, btnRight].forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Send stop command when button is released
+            // (Only if a key was active, to prevent double-sends from mouseup AND keyup)
+            if (activeKey || event.type === 'mouseup' || event.type === 'mouseleave' || event.type === 'touchend') {
+                sendCommand('S');
+                activeKey = null; // Clear active key on release
+            }
+        }
+        
+        function emergencyStopCar() {
+            // Visual feedback
+            emergencyStop.classList.add('active');
+            setTimeout(() => emergencyStop.classList.remove('active'), 500);
+            
+            // Send emergency stop command
+            sendCommand('S');
+            addToLog('🛑 EMERGENCY STOP ACTIVATED');
+            carStatus.textContent = 'EMERGENCY STOP';
+            
+            // Reset all buttons
+            [btnForward, btnBackward, btnLeft, btnRight, btnStop].forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+        
+        function highlightButton(command) {
+            // Remove active state from all buttons first
+            [btnForward, btnBackward, btnLeft, btnRight, btnStop].forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active state to the pressed button
+            switch(command) {
+                case 'F': btnForward.classList.add('active'); break;
+                case 'B': btnBackward.classList.add('active'); break;
+                case 'L': btnLeft.classList.add('active'); break;
+                case 'R': btnRight.classList.add('active'); break;
+                case 'S': btnStop.classList.add('active'); break;
+            }
+        }
+        
+        function updateConnectionStatus(connected, message) {
+            isConnected = connected;
+            connectionIndicator.className = connected ? 'status-indicator connected' : 'status-indicator disconnected';
+            connectionStatus.textContent = message;
+            
+            // [FIX 3] These IDs don't exist in the HTML, so they would cause an error.
+            // document.getElementById('esp32-status').textContent = connected ? 'Firebase Online' : 'Offline';
+            // document.getElementById('motor-status').textContent = connected ? 'Ready to Write' : 'Awaiting Connection';
+        }
+        
+        // --- FIREBASE CONNECTION MONITORING (Simplified Check) ---
+        
+        function checkFirebaseConnection() {
+            // Firebase SDK provides a dedicated connection status listener
+            database.ref(".info/connected").on("value", function(snapshot) {
+                const connected = snapshot.val();
+                if (connected) {
+                    updateConnectionStatus(true, 'Firebase Connected');
+                    addToLog('Firebase connection established.');
+                } else {
+                    updateConnectionStatus(false, 'Firebase Disconnected');
+                    addToLog('Firebase connection lost.');
+                }
+            });
+        }
+        
+        // --- SETTINGS AND UTILITY FUNCTIONS ---
+        
+        function saveSettings() {
+            const newApiKey = apiKeyInput.value;
+            const newDatabaseUrl = databaseUrlInput.value;
+            const newCommandPath = commandPathInput.value;
+
+            // Save new config to local storage
+            localStorage.setItem('firebaseApiKey', newApiKey);
+            localStorage.setItem('firebaseDatabaseUrl', newDatabaseUrl);
+            localStorage.setItem('firebaseCommandPath', newCommandPath);
+            
+            addToLog(`Settings saved: DB URL=${newDatabaseUrl}, Path=${newCommandPath}`);
+            alert('Settings saved. Please reload the page to initialize Firebase with the new configuration.');
+        }
+        
+        function loadSettings() {
+            // NOTE: For security, Firebase App initialization requires a page reload 
+            // if the API Key or URL is changed from saved settings.
+        }
+        
+        function updateSpeedDisplay() {
+            // Speed control is removed, keeping just the display update for consistency
+            // The display elements were also removed/modified in the HTML structure cleanup.
+        }
+        
+        function getCommandName(command) {
+            switch(command) {
+                case 'F': return 'Forward';
+                case 'B': return 'Backward';
+                case 'L': return 'Turn Left';
+                case 'R': return 'Turn Right';
+                case 'S': return 'Stop';
+                default: return 'Unknown';
+            }
+        }
+        
+        function setCurrentTime() {
+            const now = new Date();
+            const timeString = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+            document.getElementById('current-time').textContent = timeString;
+            document.getElementById('current-time2').textContent = timeString;
+        }
+
+        // Simple helper to add to the log
+        function addToLog(message) {
+            const now = new Date();
+            const timeString = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span class="log-time">${timeString}</span> ${message}`;
+            
+            commandLog.appendChild(logEntry);
+            
+            // Auto-scroll to bottom
+            commandLog.scrollTop = commandLog.scrollHeight;
+        }
+
+        // Theme Toggle Function
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.className = isDarkMode ? 'dark-mode' : 'light-mode';
+            document.getElementById('theme-icon').textContent = isDarkMode ? '🌙' : '☀️';
+            document.getElementById('theme-text').textContent = isDarkMode ? 'Dark Mode' : 'Light Mode';
+            localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+        }
+
+        // Load theme from local storage
+        if (localStorage.getItem('theme') === 'light') {
+            toggleTheme(); // Will flip it to light mode
+        }
+        
+        function handleKeyDown(e) {
+            // Prevent default behavior for control keys
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'e', 'E'].includes(e.key)) {
+                e.preventDefault();
+            }
+            
+            // Don't process if the same key is already active
+            if (activeKey === e.key) return;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    activeKey = e.key;
+                    sendCommand('F');
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    activeKey = e.key;
+                    sendCommand('B');
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    activeKey = e.key;
+                    sendCommand('L');
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    activeKey = e.key;
+                    sendCommand('R');
+                    break;
+                case ' ':
+                    activeKey = e.key;
+                    sendCommand('S');
+                    break;
+                case 'e':
+                case 'E':
+                    emergencyStopCar();
+                    break;
+            }
+        }
+        
+        function handleKeyUp(e) {
+            // Only send STOP if the released key was one of the movement keys
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key)) {
+                if (activeKey === e.key) {
+                    activeKey = null;
+                    sendCommand('S');
+                }
+            }
+             // Handle spacebar stop
+            if (e.key === ' ' && activeKey === ' ') {
+                 activeKey = null;
+            }
+        }
+    </script>
+</body>
+</html>
