@@ -43,8 +43,8 @@ This project demonstrates how to build a remote-controlled car that can be maneu
 ### Hardware Assembly Photos
 *(Place your car images in an `images` folder to display them here!)*
 <p align="center">
-  <img src="./images/car_1.jpg" alt="Car Assembly - Top View" width="45%" />
-  <img src="./images/car_2.jpg" alt="Car Assembly - Side View" width="45%" />
+  <img src="./car_1.jpg" alt="Car Assembly - Top View" width="45%" />
+  <img src="./car_2.jpg" alt="Car Assembly - Side View" width="45%" />
 </p>
 
 ## 🔌 Circuit Diagram & Hardware Setup
@@ -62,7 +62,7 @@ Here is the system circuitry mapped out logically:
 5. **Peripherals:** Buzzers are wired to ground and specific configurable digital output pins on the ESP32.
 
 ### System Circuit Diagram
-![Circuit Diagram](./images/circuit_diagram.png)
+![Circuit Diagram](./circuit_diagram.png)
 
 ## 📂 Project Structure
 ```text
